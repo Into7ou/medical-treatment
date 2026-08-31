@@ -1,120 +1,74 @@
 <template>
-    <div class="book-container">
-        <el-header class="book-header">
-            <div class="header-inner">
-                <div class="brand">
-                    <el-icon :size="24" class="brand-icon">
-                        <Calendar />
-                    </el-icon>
-                    <h1>预约挂号 <span class="subtitle">Appointment</span></h1>
+    <PatientLayout>
+        <div class="book-page">
+            <!-- 搜索筛选 -->
+            <div class="search-card">
+                <div>
+                    <span class="search-eyebrow">快速筛选</span>
+                    <h2>选择科室查看可预约排班</h2>
+                    <p>选择科室后即可查看对应的医生排班与号源情况</p>
                 </div>
-                <el-button type="primary" plain round icon="HomeFilled" @click="$router.push('/')">
-                    返回首页
-                </el-button>
+                <div class="search-row">
+                    <el-select v-model="queryForm.deptId" placeholder="全部科室" clearable size="large" style="width: 220px" @change="fetchSchedules">
+                        <template #prefix><el-icon><OfficeBuilding /></el-icon></template>
+                        <el-option v-for="dept in departmentList" :key="dept.id" :label="dept.deptName" :value="dept.id" />
+                    </el-select>
+                    <el-button type="primary" size="large" icon="Search" @click="fetchSchedules">刷新排班</el-button>
+                </div>
             </div>
-        </el-header>
 
-        <div class="main-content">
-            <div class="search-section">
-                <div class="search-card">
-                    <div class="search-title">
-                        <el-icon>
-                            <Search />
-                        </el-icon> 查找专家与排班
+            <!-- 排班列表 -->
+            <div class="schedule-section">
+                <div class="schedule-header">
+                    <div class="schedule-title">
+                        <el-icon><Clock /></el-icon>
+                        <span>可预约排班</span>
                     </div>
-                    <el-form inline class="custom-form">
-                        <el-form-item label="选择科室">
-                            <el-select v-model="queryForm.deptId" placeholder="全部科室" clearable size="large"
-                                style="width: 220px" @change="fetchSchedules">
-                                <template #prefix><el-icon>
-                                        <OfficeBuilding />
-                                    </el-icon></template>
-                                <el-option v-for="dept in departmentList" :key="dept.id" :label="dept.deptName"
-                                    :value="dept.id" />
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item>
-                            <el-button type="primary" size="large" icon="Search" @click="fetchSchedules">
-                                刷新排班
-                            </el-button>
-                        </el-form-item>
-                    </el-form>
+                    <span class="schedule-count">{{ scheduleList.length }} 条结果</span>
                 </div>
-            </div>
 
-            <el-card class="schedule-card" shadow="never">
-                <el-table :data="scheduleList" v-loading="loading"
-                    :header-cell-style="{ background: '#f8fafc', color: '#64748b' }" style="width: 100%">
-                    <el-table-column label="专家信息" min-width="180">
-                        <template #default="{ row }">
-                            <div class="doctor-info-cell">
-                                <el-avatar :size="48" icon="UserFilled" class="doctor-avatar" src="" />
-                                <div class="doctor-text">
-                                    <div class="name">
-                                        {{ row.doctorName }}
-                                        <el-tag size="small" effect="plain" type="primary" round>{{ row.doctorJobTitle
-                                            }}</el-tag>
+                <div class="schedule-table">
+                    <div v-loading="loading" class="schedule-list">
+                        <div v-for="row in scheduleList" :key="row.id" class="schedule-row">
+                            <div class="s-cell doc-cell">
+                                <el-avatar :size="44" icon="UserFilled" class="s-avatar" />
+                                <div>
+                                    <div class="s-name">{{ row.doctorName }}</div>
+                                    <div class="s-meta">
+                                        <span class="s-tag tag-primary">{{ row.doctorJobTitle }}</span>
+                                        <span>{{ row.deptName }}</span>
                                     </div>
-                                    <div class="dept">{{ row.deptName }}</div>
                                 </div>
                             </div>
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column label="就诊日期" width="160">
-                        <template #default="{ row }">
-                            <div class="date-cell">
-                                <el-icon>
-                                    <Calendar />
-                                </el-icon>
-                                <span>{{ row.workDate }}</span>
-                            </div>
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column label="时段" width="120">
-                        <template #default="{ row }">
-                            <el-tag :type="row.shiftType === 1 ? 'warning' : 'info'" effect="light" class="shift-tag">
-                                <el-icon class="mr-1">
-                                    <component :is="row.shiftType === 1 ? 'Sunny' : 'Moon'" />
-                                </el-icon>
-                                {{ row.shiftType === 1 ? '上午' : '下午' }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column label="号源状态" width="140">
-                        <template #default="{ row }">
-                            <div class="quota-cell">
-                                <span :class="getQuotaClass(row.remainingQuota)">
-                                    {{ row.remainingQuota > 0 ? `剩余 ${row.remainingQuota}` : '已约满' }}
+                            <div class="s-cell">
+                                <div class="s-date"><el-icon><Calendar /></el-icon> {{ row.workDate }}</div>
+                                <span class="s-tag" :class="row.shiftType === 1 ? 'tag-am' : 'tag-pm'">
+                                    {{ row.shiftType === 1 ? '上午 08:00-12:00' : '下午 14:00-18:00' }}
                                 </span>
-                                <el-progress :percentage="getQuotaPercentage(row.remainingQuota)"
-                                    :status="getQuotaStatus(row.remainingQuota)" :show-text="false" :stroke-width="4"
-                                    style="width: 80px; margin-top: 4px;" />
                             </div>
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column label="操作" width="120" align="right">
-                        <template #default="{ row }">
-                            <el-button v-if="row.remainingQuota > 0" type="primary" size="default" round
-                                @click="handleBook(row)">
-                                立即挂号
-                            </el-button>
-                            <el-button v-else type="info" disabled plain round>
-                                缺货登记
-                            </el-button>
-                        </template>
-                    </el-table-column>
-
-                    <template #empty>
-                        <el-empty description="当前筛选条件下暂无排班" :image-size="100" />
-                    </template>
-                </el-table>
-            </el-card>
+                            <div class="s-cell s-quota">
+                                <div class="quota-bar">
+                                    <span :class="quotaTextClass(row.remainingQuota)">
+                                        {{ row.remainingQuota > 0 ? `剩余 ${row.remainingQuota} 号` : '已约满' }}
+                                    </span>
+                                    <div class="q-bar">
+                                        <div class="q-fill" :style="{ width: quotaPercent(row.remainingQuota), background: quotaColor(row.remainingQuota) }"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="s-cell s-action">
+                                <el-button v-if="row.remainingQuota > 0" type="primary" round @click="handleBook(row)">
+                                    立即挂号
+                                </el-button>
+                                <el-button v-else disabled plain round>已满额</el-button>
+                            </div>
+                        </div>
+                        <el-empty v-if="!loading && scheduleList.length === 0" description="当前筛选条件下暂无排班" :image-size="100" />
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </PatientLayout>
 </template>
 
 <script setup lang="ts">
@@ -126,10 +80,10 @@ import { publicApi } from '@/api/public';
 import { appointmentApi } from '@/api/appointment';
 import type { DepartmentVO } from '@/types/department';
 import type { SchedulePublicVO } from '@/types/public';
-// 引入图标
+import PatientLayout from '@/components/PatientLayout.vue';
 import {
-    Calendar, HomeFilled, Search, OfficeBuilding,
-    UserFilled, Sunny, Moon
+    Calendar, Search, OfficeBuilding,
+    UserFilled, Clock
 } from '@element-plus/icons-vue';
 
 const route = useRoute();
@@ -145,7 +99,6 @@ const queryForm = reactive({
     doctorId: undefined as number | undefined
 });
 
-// 获取科室列表
 const fetchDepartments = async () => {
     try {
         const res = await publicApi.getDepartments();
@@ -157,7 +110,6 @@ const fetchDepartments = async () => {
     }
 };
 
-// 获取排班列表
 const fetchSchedules = async () => {
     loading.value = true;
     try {
@@ -177,30 +129,23 @@ const fetchSchedules = async () => {
     }
 };
 
-// UI 辅助函数：号源文字样式
-const getQuotaClass = (count: number) => {
-    if (count <= 0) return 'text-gray';
-    if (count < 5) return 'text-danger';
-    return 'text-success';
+const quotaTextClass = (count: number) => {
+    if (count <= 0) return 'q-empty';
+    if (count < 5) return 'q-low';
+    return 'q-ok';
 };
 
-// UI 辅助函数：号源进度条百分比（模拟，假设总量20）
-const getQuotaPercentage = (count: number) => {
-    if (count <= 0) return 100;
-    // 假设每个时段大概20-30个号，反向计算被占用的比例用于展示
-    // 这里为了视觉效果，简单处理：剩余越多，进度条越短(表示被占用少) 或者 进度条表示剩余量
-    // 让我们用"剩余量"概念：满格是充裕
-    return Math.min((count / 30) * 100, 100);
+const quotaPercent = (count: number) => {
+    if (count <= 0) return '100%';
+    return `${Math.min((count / 30) * 100, 100)}%`;
 };
 
-// UI 辅助函数：进度条颜色状态
-const getQuotaStatus = (count: number) => {
-    if (count <= 0) return 'exception'; // 红
-    if (count < 10) return 'warning';   // 橙
-    return 'success';                   // 绿
+const quotaColor = (count: number) => {
+    if (count <= 0) return '#e74c3c';
+    if (count < 10) return '#f59e0b';
+    return '#1a8a7a';
 };
 
-// 挂号
 const handleBook = (schedule: SchedulePublicVO) => {
     if (!patientStore.isProfileComplete()) {
         ElMessageBox.confirm(
@@ -220,7 +165,7 @@ const handleBook = (schedule: SchedulePublicVO) => {
     ElMessageBox.confirm(
         `确定挂号 ${schedule.doctorName} 医生 (${schedule.workDate} ${schedule.shiftType === 1 ? '上午' : '下午'}) 吗？`,
         '确认挂号',
-        { type: 'info', confirmButtonText: '确认支付/挂号' }
+        { type: 'info', confirmButtonText: '确认挂号' }
     ).then(async () => {
         try {
             await appointmentApi.create({
@@ -249,190 +194,252 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-:deep(:root) {
-    --el-color-primary: #3b82f6;
+.book-page {
+    animation: fadeUp 0.4s ease both;
 }
 
-.book-container {
-    min-height: 100vh;
-    background-color: #f8fafc;
-    font-family: 'Inter', sans-serif;
-}
-
-/* 顶部 Header */
-.book-header {
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
-    height: 64px;
-    padding: 0 40px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-
-    .header-inner {
-        max-width: 1200px;
-        margin: 0 auto;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-
-        .brand-icon {
-            color: #3b82f6;
-            background: #eff6ff;
-            padding: 6px;
-            border-radius: 6px;
-            box-sizing: content-box;
-        }
-
-        h1 {
-            font-size: 20px;
-            color: #1e293b;
-            margin: 0;
-            display: flex;
-            align-items: baseline;
-            gap: 8px;
-
-            .subtitle {
-                font-size: 13px;
-                color: #94a3b8;
-                font-weight: 400;
-            }
-        }
-    }
-}
-
-.main-content {
-    max-width: 1200px;
-    margin: 30px auto;
-    padding: 0 20px;
-}
-
-/* 搜索筛选区 */
-.search-section {
-    margin-bottom: 24px;
-
-    .search-card {
-        background: white;
-        padding: 24px 32px;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-        border: 1px solid #e2e8f0;
-        display: flex;
-        align-items: center;
-        gap: 40px;
-    }
-
-    .search-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #1e293b;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        white-space: nowrap;
-    }
-
-    .custom-form {
-        flex: 1;
-
-        :deep(.el-form-item) {
-            margin-bottom: 0;
-            margin-right: 20px;
-        }
-    }
-}
-
-/* 排班列表卡片 */
-.schedule-card {
+.search-card {
+    background: white;
     border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(26, 138, 122, 0.06);
+
+    .search-eyebrow {
+        display: inline-flex;
+        padding: 4px 10px;
+        border-radius: 12px;
+        background: #e6f4f1;
+        color: #1a8a7a;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        margin-bottom: 10px;
+    }
+
+    h2 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 650;
+        color: #1a2a2a;
+    }
+
+    p {
+        margin: 0;
+        color: #5a6a6a;
+        font-size: 13px;
+    }
+}
+
+.search-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.schedule-section {
+    background: white;
+    border-radius: 16px;
     overflow: hidden;
+    box-shadow: 0 2px 10px rgba(26, 138, 122, 0.06);
+}
 
-    :deep(.el-table__row) {
-        height: 80px;
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid #eef0ec;
+}
+
+.schedule-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #1a2a2a;
+    font-size: 15px;
+}
+
+.schedule-count {
+    color: #9aabab;
+    font-size: 13px;
+}
+
+.schedule-list {
+    min-height: 100px;
+}
+
+.schedule-row {
+    display: flex;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid #f5f6f3;
+    transition: background 0.15s;
+    gap: 16px;
+
+    &:last-child {
+        border-bottom: none;
     }
 
-    /* 医生信息样式 */
-    .doctor-info-cell {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-
-        .doctor-avatar {
-            background: #f1f5f9;
-            color: #cbd5e1;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .doctor-text {
-            .name {
-                font-weight: 600;
-                color: #1e293b;
-                font-size: 15px;
-                margin-bottom: 4px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .dept {
-                color: #64748b;
-                font-size: 13px;
-            }
-        }
+    &:hover {
+        background: #fafbf9;
     }
+}
 
-    /* 日期样式 */
-    .date-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #334155;
+.s-cell {
+    flex: 1;
+    min-width: 0;
+}
+
+.doc-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 2;
+}
+
+.s-avatar {
+    background: #f0f2ef;
+    color: #bcc5c2;
+    border: 2px solid #f7f8f5;
+    box-shadow: 0 4px 12px rgba(26, 138, 122, 0.06);
+    flex-shrink: 0;
+}
+
+.s-name {
+    font-weight: 600;
+    color: #1a2a2a;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.s-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #5a6a6a;
+}
+
+.s-date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #1a2a2a;
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.s-quota {
+    max-width: 160px;
+}
+
+.s-action {
+    text-align: right;
+    flex-shrink: 0;
+    min-width: 120px;
+}
+
+.s-tag {
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.tag-primary {
+    background: #e6f4f1;
+    color: #1a8a7a;
+}
+
+.tag-am {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.tag-pm {
+    background: #e0eefc;
+    color: #1d6fc7;
+}
+
+.quota-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    span {
+        font-size: 13px;
         font-weight: 500;
     }
 
-    /* 号源样式 */
-    .quota-cell {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-
-        span {
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .text-success {
-            color: #10b981;
-        }
-
-        .text-danger {
-            color: #f59e0b;
-        }
-
-        .text-gray {
-            color: #94a3b8;
-        }
+    .q-empty {
+        color: #9aabab;
     }
 
-    .shift-tag {
-        display: flex;
-        align-items: center;
-        width: fit-content;
+    .q-low {
+        color: #e74c3c;
     }
 
-    .mr-1 {
-        margin-right: 4px;
+    .q-ok {
+        color: #1a8a7a;
+    }
+}
+
+.q-bar {
+    height: 4px;
+    background: #eef0ec;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.q-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .schedule-row {
+        flex-wrap: wrap;
+        padding: 16px;
+    }
+
+    .doc-cell {
+        flex: 1 1 100%;
+    }
+
+    .s-quota {
+        max-width: none;
+        flex: 1;
+    }
+
+    .s-action {
+        flex-shrink: 1;
+        min-width: auto;
+    }
+
+    .search-card {
+        padding: 20px;
     }
 }
 </style>
